@@ -79,6 +79,7 @@ def plot(nw, dataset):
             importance = [a.mean() for a in criteria]
 
         per_method_importance[method] = importance
+        pickle.dump(importance, open(filename.replace('final.pickle','importance.pickle'), 'wb'))
 
         bar_plot(importance, '%s %s block importance using %s'%(dataset, nw_mapping[nw], mapping[method]), xaxislbl, saveplot=True, show=False)
 

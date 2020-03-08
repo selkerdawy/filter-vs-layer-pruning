@@ -20,12 +20,15 @@ def conv3x3(in_planes, out_planes, stride=1):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, cfg, stride=1, downsample=None):
+    def __init__(self, inplanes, planes, cfg, stride=1, downsample=None, add_gates = True, **kwargs):
         # cfg should be a number in this case
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, cfg, stride)
         self.bn1 = nn.BatchNorm2d(cfg)
-        self.gate1 = GateLayer(cfg,cfg,[1, -1, 1, 1])
+        if add_gates:
+            self.gate1 = GateLayer(cfg,cfg,[1, -1, 1, 1])
+        else:
+            self.gate1 = nn.Identity()
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(cfg, planes)
         self.bn2 = nn.BatchNorm2d(planes)
@@ -64,7 +67,7 @@ def downsample_basic_block(x, planes):
 
 class ResNet(nn.Module):
 
-    def __init__(self, depth, dataset='cifar10', cfg=None):
+    def __init__(self, depth, dataset='cifar10', cfg=None, **kwargs):
         super(ResNet, self).__init__()
         # Model type specifies number of layers for CIFAR-10 model
         assert (depth - 2) % 6 == 0, 'depth should be 6n+2'
@@ -81,11 +84,11 @@ class ResNet(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(16)
-        self.gate_in = GateLayer(16, 16, [1, -1, 1, 1])
+        self.gate_in = GateLayer(16, 16, [1, -1, 1, 1]) if kwargs['add_gates'] else nn.Identity()
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(block, 16, n, cfg=cfg[0:n])
-        self.layer2 = self._make_layer(block, 32, n, cfg=cfg[n:2*n], stride=2)
-        self.layer3 = self._make_layer(block, 64, n, cfg=cfg[2*n:3*n], stride=2)
+        self.layer1 = self._make_layer(block, 16, n, cfg=cfg[0:n], **kwargs)
+        self.layer2 = self._make_layer(block, 32, n, cfg=cfg[n:2*n], stride=2, **kwargs)
+        self.layer3 = self._make_layer(block, 64, n, cfg=cfg[2*n:3*n], stride=2, **kwargs)
         self.avgpool = nn.AvgPool2d(8)
         if dataset.lower() == 'cifar10':
             num_classes = 10
@@ -101,16 +104,16 @@ class ResNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _make_layer(self, block, planes, blocks, cfg, stride=1):
+    def _make_layer(self, block, planes, blocks, cfg, stride=1, **kwargs):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = partial(downsample_basic_block, planes=planes*block.expansion)
 
         layers = []
-        layers.append(block(self.inplanes, planes, cfg[0], stride, downsample))
+        layers.append(block(self.inplanes, planes, cfg[0], stride, downsample, **kwargs))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, cfg[i]))
+            layers.append(block(self.inplanes, planes, cfg[i], **kwargs))
 
         return nn.Sequential(*layers)
 
@@ -130,11 +133,18 @@ class ResNet(nn.Module):
 
         return x
 
-def resnet56(**kwargs):
+def resnet(**kwargs):
     """
     Constructs a ResNet model.
     """
     return ResNet(**kwargs)
+
+
+def resnet56(**kwargs):
+    """
+    Constructs a ResNet model.
+    """
+    return ResNet(depth=56, **kwargs)
 
 if __name__ == '__main__':
     net = resnet(depth=56)
