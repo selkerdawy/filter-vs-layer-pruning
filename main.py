@@ -466,7 +466,7 @@ def main():
         model = PreActResNet18()
     elif (args.model == "resnet50") or (args.model == "resnet50_noskip"):
         if "CIFAR" in args.dataset:
-            model = resnet56(dataset=args.dataset, depth=56)
+            model = resnet56(dataset=args.dataset, add_gates=True)
         else:
             from models.resnet import resnet50
             skip_gate = True

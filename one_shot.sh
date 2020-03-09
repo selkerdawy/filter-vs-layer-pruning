@@ -22,7 +22,7 @@ resnet56
 
 pruningconfig=./configs/cifar_one_shot.json
 loadmodel=$dataset'-baseline/'$model'/model_best.pth.tar'
-for method in 0 2 6 22 30 31
+for method in 0 2 6 22 30
 do
     dir=$dataset'/'$model'/one_shot_criterion'$method
 
@@ -38,6 +38,6 @@ do
 
 done
 
-echo "Plot ..."
+echo "Plot per block importance ..."
 python plot_layer_importance.py $model $dataset
 

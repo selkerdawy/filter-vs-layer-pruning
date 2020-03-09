@@ -28,6 +28,9 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                     help='learning rate (default: 0.1)')
+parser.add_argument('--lr-decay-every', type=int, default=100,  help='learning rate decay by 10 every X epochs')
+parser.add_argument('--lr-decay-scalar', type=float, default=0.1,
+                    help='--')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                     help='SGD momentum (default: 0.9)')
 parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float,
@@ -78,7 +81,7 @@ def get_pruned_resnet56(model, crit, groups):
                 break
 
         whichblock = blockid%groups[whichlayer]
-        if whichblock != 0 and blockid > 0:
+        if (whichblock > 0 or whichlayer ==0 ) and blockid >= 0 :
             block = mapping[whichlayer][whichblock]
             print('       Removing block %d from group %d'%(whichblock,whichlayer+1))
             mapping[whichlayer][whichblock] = nn.Identity()
@@ -206,15 +209,16 @@ def test():
 def save_checkpoint(state, is_best, filepath):
     torch.save(state, os.path.join(filepath, 'checkpoint.pth.tar'))
     if is_best:
-        shutil.copyfile(os.path.join(filepath, 'checkpoint.pth.tar'), os.path.join(filepath, 'model_best.pth.tar'))
+        shutil.copyfile(os.path.join(filepath, 'checkpoint.pth.tar'), os.path.join(filepath, 'best_model.pth.tar'))
 
 best_prec1 = 0.
 prec1 = test()
 if args.action == 'train':
     for epoch in range(args.start_epoch, args.epochs):
-        if epoch in [args.epochs*0.5, args.epochs*0.75, args.epochs*0.92]:
+        lr = args.lr * (args.lr_decay_scalar ** (epoch // args.lr_decay_every))
+        if lr != args.lr:
             for param_group in optimizer.param_groups:
-                param_group['lr'] *= 0.1
+                param_group['lr'] = lr
         train(epoch)
         prec1 = test()
         is_best = prec1 > best_prec1
