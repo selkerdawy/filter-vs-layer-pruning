@@ -60,7 +60,7 @@ def get_resnet50_importance(method, criteria):
 
 def plot(nw, dataset):
 
-    mapping = {0:'weight taylor', 2: 'weight magnitude', 6: 'feature map taylor', 22: 'gate taylor', 30: 'BN scale', 31: 'BN taylor'}
+    mapping = {0:'weight taylor', 2: 'weight magnitude', 6: 'feature map taylor', 22: 'gate taylor', 30: 'BN scale'}
     nw_mapping = {'resnet50':'ResNet56', 'vgg11': 'VGG11_BN'}
     xaxislbl = 'block' if 'resnet' in nw else 'layer'
     per_method_importance = {}
