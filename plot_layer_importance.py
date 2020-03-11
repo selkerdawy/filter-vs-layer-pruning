@@ -29,12 +29,12 @@ def bar_plot(importance, title, tickname, saveplot=False, show=True):
     if show:
         plt.show()
 
-
 def get_ensemble_ranking(criteria_per_method):
     layer_ranks = np.asarray([0]*len(criteria_per_method[list(criteria_per_method.keys())[0]]))
     for k,v in criteria_per_method.items():
         idx_ranking = np.argsort(v)
-        layer_ranks += idx_ranking
+        for i,idx in enumerate(idx_ranking):
+            layer_ranks[idx]+=i
 
     return layer_ranks
 
@@ -85,7 +85,7 @@ def plot(nw, dataset):
 
     ensemble = get_ensemble_ranking(per_method_importance)
 
-    bar_plot(importance, '%s %s block importance using ensemble'%(dataset,nw_mapping[nw]), xaxislbl, saveplot=True, show=False)
+    bar_plot(ensemble, '%s %s block importance using ensemble'%(dataset,nw_mapping[nw]), xaxislbl, saveplot=True, show=False)
 
 if __name__ == '__main__':
     plot(sys.argv[1], sys.argv[2])
