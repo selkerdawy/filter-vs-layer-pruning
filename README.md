@@ -11,8 +11,6 @@ virtualenv .envpy36 -p python3.6
 source .envpy36/bin/activate
 #Install libraries
 pip install -r req.txt
-#Download pretrained
-mkdir -p cifar100-baseline/cifar100-vgg19-best
 ```
 
 ## Run ResNet56 on CIFAR100
