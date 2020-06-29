@@ -136,7 +136,9 @@ else:
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
 print('==> Model ', args.arch)
+from thop import profile
 model = models.__dict__[args.arch](dataset=args.dataset, depth=args.depth, add_gates = False)
+
 if len(args.load_model)>0:
     checkpoint = torch.load(args.load_model)
     if 'state_dict' in checkpoint:
@@ -147,7 +149,11 @@ if len(args.load_model)>0:
 args.arch_depth = args.arch + str(args.depth)
 
 if args.remove_layers !=0:
+    input = torch.randn(1, 3, 32, 32)
+    omacs, oparams = profile(model, inputs=(input, ))
     prune_cifar_resnet56(model)
+    macs, params = profile(model, inputs=(input, ))
+    print('flops reduction %0.3f'%((1-(macs/omacs))*100))
     #print(model)
 
 if args.cuda:
