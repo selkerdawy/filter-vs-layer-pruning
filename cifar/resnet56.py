@@ -67,7 +67,7 @@ def downsample_basic_block(x, planes):
 
 class ResNet(nn.Module):
 
-    def __init__(self, depth, dataset='cifar10', cfg=None, **kwargs):
+    def __init__(self, depth, dataset='cifar100', cfg=None, **kwargs):
         super(ResNet, self).__init__()
         # Model type specifies number of layers for CIFAR-10 model
         assert (depth - 2) % 6 == 0, 'depth should be 6n+2'
@@ -79,6 +79,8 @@ class ResNet(nn.Module):
             cfg = [item for sub_list in cfg for item in sub_list]
 
         self.cfg = cfg
+        if 'add_gates' not in kwargs:
+            kwargs['add_gates'] = False
 
         self.inplanes = 16
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1,

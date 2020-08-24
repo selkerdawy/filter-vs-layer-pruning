@@ -56,11 +56,21 @@ parser.add_argument('--action', default='train', type=str, help='')
 parser.add_argument('--load-model', default='', type=str, help='pretrained model')
 parser.add_argument('--criterion', default='', type=str, help='Path to criterion')
 parser.add_argument('--remove-layers', default=0, type=int, help='How many layers/blocks to remove')
+parser.add_argument('--iterative', action='store_true', default=False,help='If loadmodel is a pruned model from iterative pruning not baseline')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 arch_method_blocksfn_mapping = {}
+
+class ZeroOut(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, x):
+        return x*0
+
+
 
 def get_pruned_resnet56(model, crit, groups):
 
@@ -75,7 +85,7 @@ def get_pruned_resnet56(model, crit, groups):
     j = 0
     i = 0
     while i < args.remove_layers:
-        blockid = sortedidx[j] - 1
+        blockid = sortedidx[j]# - 1
         for whichlayer, g in enumerate(groupscum):
             if g > blockid:
                 break
@@ -84,7 +94,13 @@ def get_pruned_resnet56(model, crit, groups):
         if (whichblock > 0 or whichlayer ==0 ) and blockid >= 0 :
             block = mapping[whichlayer][whichblock]
             print('       Removing block %d from group %d'%(whichblock,whichlayer+1))
-            mapping[whichlayer][whichblock] = nn.Identity()
+            mapping[whichlayer][whichblock].conv1 = nn.Identity()
+            mapping[whichlayer][whichblock].bn1 = nn.Identity()
+            mapping[whichlayer][whichblock].relu = nn.Identity()
+            mapping[whichlayer][whichblock].conv2 = nn.Identity()
+            mapping[whichlayer][whichblock].bn2 = ZeroOut()
+            mapping[whichlayer][whichblock].pruned = True
+
             i+=1
         j+=1
 
@@ -100,9 +116,9 @@ if not os.path.exists(args.save):
     os.makedirs(args.save)
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
-if args.dataset == 'cifar10':
+if args.dataset.lower() == 'cifar10':
     train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('./data.cifar10', train=True, download=True,
+        datasets.CIFAR10('./data', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.Pad(4),
                            transforms.RandomCrop(32),
@@ -112,14 +128,14 @@ if args.dataset == 'cifar10':
                        ])),
         batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('./data.cifar10', train=False, transform=transforms.Compose([
+        datasets.CIFAR10('./data', train=False, transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
                        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 else:
     train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR100('./data.cifar100', train=True, download=True,
+        datasets.CIFAR100('./data', train=True, download=True,
                        transform=transforms.Compose([
                            transforms.Pad(4),
                            transforms.RandomCrop(32),
@@ -129,7 +145,7 @@ else:
                        ])),
         batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR100('./data.cifar100', train=False, transform=transforms.Compose([
+        datasets.CIFAR100('./data', train=False, transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
                        ])),
@@ -144,7 +160,13 @@ if len(args.load_model)>0:
     if 'state_dict' in checkpoint:
         checkpoint = checkpoint['state_dict']
     #checkpoint = {k.replace('features','feature').replace('module.',''):v for k, v in checkpoint.items()}
-    model.load_state_dict(checkpoint)
+
+    if args.iterative and args.remove_layers > 1:
+        args.remove_layers = args.remove_layers - 1
+        prune_cifar_resnet56(model)
+        args.remove_layers = args.remove_layers + 1
+
+    model.load_state_dict(checkpoint, strict=False)
 
 args.arch_depth = args.arch + str(args.depth)
 
